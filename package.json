@@ -1,5 +1,5 @@
 {
-	"name" : "Test jeu",
+	"name" : "Lulu.io",
 	"version" : "1.0.0",
 	"author" : "Luluwebmaster <contact@luluwebmaster.fr>",
 	"description" : "Premier test de jeu utilisant socket.io",
