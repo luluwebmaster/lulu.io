@@ -1,0 +1,9 @@
+{
+	"name" : "Test jeu",
+	"version" : "1.0.0",
+	"author" : "Luluwebmaster <contact@luluwebmaster.fr>",
+	"description" : "Premier test de jeu utilisant socket.io",
+	"dependencies" : {
+		"socket.io" : "~1.4.6"
+	}
+}

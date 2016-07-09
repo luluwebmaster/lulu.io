@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8"/>
+		<title>Mini jeu utillisant socket.io</title>
+		<script src="https://code.jquery.com/jquery-3.0.0.min.js"></script>
+		<script src="socket.io/socket.io.js"></script>
+		<script>
+			//On set nos codes de touches
+			var gameTouches = {
+				"avancer" : 40,
+				"reculer" : 38,
+				"gauche" : 37,
+				"droite" : 39,
+				"speed" : 17,
+				"tchat" : 84
+			};
+			//Variable d'avancement
+			avRight = false;
+			avLeft = false;
+			avDown = false;
+			avUp = false;
+			listePlayers = {};
+			//Liste des points
+			points = {};
+			//Fonction pour dessiner dans canvas
+			function drawCanvas()
+			{
+				//On réorgabise le tableau des players
+				var newListePlayers = [];
+				for(var key in listePlayers)
+				{
+					var idObject = listePlayers[key]['points'];
+					for(i=0;i<=999;i++)
+					{
+						if(newListePlayers[idObject] !== undefined)
+						{
+							idObject = idObject+'1';
+						}
+						else
+						{
+							break;
+						}
+					}
+					idObject = parseInt(idObject);
+					newListePlayers[idObject] = {};
+					newListePlayers[idObject][key] = listePlayers[key];
+				}
+				listePlayers = {};
+				for(var key in newListePlayers)
+				{
+					for(var firstKey in newListePlayers[key])
+					{
+						break;
+					}
+					listePlayers[firstKey] = newListePlayers[key][firstKey];
+				}
+				var heightCanvas = $('.s-game').height();
+				var widthCanvas = $('.s-game').width();
+				var context = canvas.getContext("2d");
+				//Backgraound du canvas
+				context.fillStyle = "#d6d6d6";
+				context.fillRect(0, 0, widthCanvas, heightCanvas);
+				//On dessine les points
+				if(Object.keys(points)[0] !== undefined)
+				{
+					for(var key in points)
+					{
+						context.beginPath();
+						context.arc(points[key]['posX'], points[key]['posY'], points[key]['radius'], 0, 2 * Math.PI, true);
+						context.fillStyle = points[key]['backgroundColor'];
+						context.fill();
+					}
+				}
+				//On dessine les joueurs
+				if(Object.keys(listePlayers)[0] !== undefined)
+				{
+					for(var key in listePlayers)
+					{
+						//Cercle
+						context.beginPath();
+						context.arc(listePlayers[key]['posX'], listePlayers[key]['posY'], listePlayers[key]['radius'], 0, 2 * Math.PI, true);
+						context.fillStyle = listePlayers[key]['colorBackround'];
+						context.fill();
+						context.lineWidth = listePlayers[key]['borderWidth'];
+						context.strokeStyle = listePlayers[key]['colorBorder'];
+						context.stroke();
+						//Username
+						context.fillStyle = listePlayers[key]['colorUsername'];
+						context.font = "20px Arial";
+						context.textAlign = "center";
+						context.fillText(listePlayers[key]['username'], listePlayers[key]['posX'], (listePlayers[key]['posY'] - (listePlayers[key]['radius'] + ((listePlayers[key]['borderWidth'] / 2) + 5))));
+						//Points
+						context.fillStyle = 'black';
+						context.font = "16px Arial";
+						context.textAlign = "center";
+						context.textBaseline = "middle";
+						context.fillText(listePlayers[key]['points'], listePlayers[key]['posX'], listePlayers[key]['posY']);
+					}
+				}
+			}
+			//Quand la page est chargée
+			$(document).ready(function (){
+				//On get le canvas
+				canvas = document.getElementById('s-game');
+				//On se connect
+				var socket = io.connect('http://localhost:8080/');
+				//Fonction pour send les variablee d'avancement
+				function sendMoove()
+				{
+					socket.emit('playerMoove', {
+						'top' : avUp,
+						'bottom' : avDown,
+						'left' : avLeft,
+						'right' : avRight,
+					});
+				}
+				//Fonction pour set des actions sur les touches quand on APPUIE dessus
+				function actionUpKey(codeKey)
+				{
+					//On set les differentes actions à effectuer
+					switch(codeKey)
+					{
+						//Touche pour faire monter le personage
+						case gameTouches['reculer']:
+							avUp = true;
+							sendMoove();
+						break;
+						//Touche pour faire decendre le personage
+						case gameTouches['avancer']:
+							avDown = true;
+							sendMoove();
+						break;
+						//Touche pour faire tourner à gauche le personage
+						case gameTouches['gauche']:
+							avLeft = true;
+							sendMoove();
+						break;
+						//Touche pour faire tourner à droite le personage
+						case gameTouches['droite']:
+							avRight = true;
+							sendMoove();
+						break;
+					}
+				}
+				//Fonction pour set des actions sur les touches quand on APPUIE dessus
+				function actionDownKey(codeKey)
+				{
+					//On set les differentes actions à effectuer
+					switch(codeKey)
+					{
+						//Touche pour faire monter le personage
+						case gameTouches['reculer']:
+							avUp = false;
+							sendMoove();
+						break;
+						//Touche pour faire decendre le personage
+						case gameTouches['avancer']:
+							avDown = false;
+							sendMoove();
+						break;
+						//Touche pour faire tourner à gauche le personage
+						case gameTouches['gauche']:
+							avLeft = false;
+							sendMoove();
+						break;
+						//Touche pour faire tourner à droite le personage
+						case gameTouches['droite']:
+							avRight = false;
+							sendMoove();
+						break;
+					}
+				}
+				//On écoute les erreurs du serveur
+				socket.on('errorPlayer', function (data){
+					var errorId = data['errorId'];
+					var msg = data['msg'];
+					switch(errorId)
+					{
+						//Erreur de connexion
+						case "connect_username_notfound":
+							$('.scf-username').parent().addClass('has-error');
+							$('.scf-error p').html(msg);
+							$('.scf-error').css('display', 'block');
+						break;
+						case "connect_username_small":
+							$('.scf-username').parent().addClass('has-error');
+							$('.scf-error p').html(msg);
+							$('.scf-error').css('display', 'block');
+						break;
+						case "connect_username_big":
+							$('.scf-username').parent().addClass('has-error');
+							$('.scf-error p').html(msg);
+							$('.scf-error').css('display', 'block');
+						break;
+						case "connect_password_notfound":
+							$('.scf-password').parent().addClass('has-error');
+							$('.scf-error p').html(msg);
+							$('.scf-error').css('display', 'block');
+						break;
+					}
+				})
+				//On envoi le formulaire de connexion
+				$('.sc-form form').submit(function (){
+					var username = $('.scf-username').val();
+					var password = $('.scf-password').val();
+					var heightCanvas = $('.s-game').height();
+					var widthCanvas = $('.s-game').width();
+					socket.emit('connectPlayer', {
+						'username' : username,
+						'password' : password,
+						'heightCanvas' : heightCanvas,
+						'widthCanvas' : widthCanvas
+					});
+					return false;
+				});
+				//Si le user est connecté
+				socket.on('is_connect', function (data){
+					if(data['connected'] == true)
+					{
+						$('.scf-error').removeClass('alert-danger');
+						$('.scf-error').addClass('alert-success');
+						$('.scf-error p').html(data['msg']);
+						$('.scf-error').css('display', 'block');
+						setTimeout(function (){
+							$('.s-connect').css('display', 'none');
+						}, 1500);
+					}
+				});
+				//Si le user est déconnecté
+				socket.on('disconected', function (data){
+					if(data == true)
+					{
+						//Variable d'avancement
+						avRight = false;
+						avLeft = false;
+						avDown = false;
+						avUp = false;
+						listePlayers = {};
+						//Liste des points
+						points = {};
+						//Affichage du formulaire de connexion
+						$('.s-connect').css('display', 'block');
+					}
+				}),
+				//On récupère les players qui se connectent
+				socket.on('playerConnectInfos', function (data){
+					listePlayers[data['uuid']] = data['data'];
+				});
+				//Si un nouveau client
+				socket.on('new_connect', function (data){
+					if(data == true)
+					{
+						socket.emit('new_connect', true);
+					}
+				});
+				//On récupère les points
+				socket.on('points', function (data){
+					points = data;
+				});
+				//On supprime les joueurs qui se deconnectent
+				socket.on('deletePlayer', function (data){
+					delete listePlayers[data];
+				});
+				//Draw du canvas
+				setInterval(function (){
+					//On get la taille du canvas
+					var heightCanvas = $('.s-game').height();
+					var widthCanvas = $('.s-game').width();
+					//On set la taille du canvas
+					$('.s-game').attr('height', heightCanvas);
+					$('.s-game').attr('width', widthCanvas);
+					//On draw le canvas
+					drawCanvas();
+				}, 1);
+				//On envoi les infos de client utile au serveur
+				setInterval(function (){
+					//On get la taille du canvas
+					var heightCanvas = $('.s-game').height();
+					var widthCanvas = $('.s-game').width();
+					socket.emit('playerInfos', {
+						'heightCanvas' : heightCanvas,
+						'widthCanvas' : widthCanvas
+					});
+				}, 10);
+				//Quand on appuie sur une touche
+				$('body').keydown(function (e){
+					actionUpKey(e.keyCode);
+				});
+				//Quand on appuie plus sur une touche
+				$('body').keyup(function (e){
+					actionDownKey(e.keyCode);
+				});
+			});
+		</script>
+		<link rel="stylesheet" href="http://bootswatch.com/cosmo/bootstrap.min.css"/>
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css"/>
+		<style>
+			body, html
+			{
+				margin:0px;
+				padding:0px;
+				max-height:100%;
+				height:100%;
+				width:100%;
+				overflow:hidden;
+			}
+			.s-connect
+			{
+				position:fixed;
+				top:0px;
+				bottom:0px;
+				left:0px;
+				right:0px;
+				background-color:#2c3e50;
+			}
+			.sc-panel
+			{
+				position:fixed;
+				width:50%;
+				max-height:400px;
+				top:0px;
+				bottom:0px;
+				left:0px;
+				right:0px;
+				margin:auto;
+			}
+			.scf-error
+			{
+				display:none;
+			}
+			.s-game
+			{
+				height:100%;
+				width:100%;
+			}
+		</style>
+	</head>
+	<body>
+	<div class="s-connect">
+		<div class="panel panel-primary sc-panel">
+			<div class="panel-heading">
+				<h3 class="panel-title">Entrer sur le jeu.</h3>
+			</div>
+			<div class="panel-body sc-form">
+				<form class="form-horizontal">
+					<div class="form-group">
+						<label for="inputEmail" class="col-lg-2 control-label">Pseudo</label>
+						<div class="col-lg-10">
+							<input type="text" class="form-control scf-username" id="inputEmail" placeholder="Votre pseudo">
+						</div>
+					</div>
+					<div class="form-group">
+						<label for="inputPassword" class="col-lg-2 control-label">Mot de passe</label>
+						<div class="col-lg-10">
+							<input type="password" class="form-control scf-password" id="inputPassword" placeholder="Votre mot de passe">
+						</div>
+					</div>
+					<div class="form-group">
+						<div class="col-lg-10 col-lg-offset-2">
+							<button type="submit" class="btn btn-primary">Entrer sur le jeu</button>
+						</div>
+					</div>
+				</form>
+				<div class="alert alert-dismissible alert-danger scf-error">
+					<button type="button" class="close" data-dismiss="alert" onClick="$(this).parent().css('display', 'none');">&times;</button>
+					<h4>Erreur !</h4>
+					<p></p>
+				</div>
+			</div>
+		</div>
+	</div>
+	<canvas class="s-game" id="s-game" oncontextmenu="return false;"></canvas>
+	</body>
+</html>
